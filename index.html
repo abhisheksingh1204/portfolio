@@ -1710,19 +1710,19 @@
           <form
             id="contact-form"
             class="space-y-6 bg-gray-50 p-6 border-2 border-black"
-            onsubmit="
-              event.preventDefault();
-              this.innerHTML =
-                '<div class=\'py-20 text-center\'><i class=\'ri-checkbox-circle-fill text-6xl text-neo-green mb-4 block\'></i><h3 class=\'text-2xl font-black uppercase\'>Transmission Received</h3><p class=\'font-mono text-sm mt-2\'>System response initialized. I will reach out shortly.</p></div>';
-            "
+            method="POST"
           >
+            <input type="hidden" name="_subject" value="Portfolio contact request" />
+            <input type="hidden" name="_captcha" value="false" />
             <div class="flex flex-col">
               <label class="font-mono font-bold mb-1 uppercase text-xs"
                 >Identity</label
               >
               <input
                 type="text"
+                name="name"
                 placeholder="NAME / COMPANY"
+                required
                 class="bg-white border-2 border-black p-3 font-bold focus:outline-none focus:bg-neo-yellow focus:shadow-hard-sm transition-all cursor-hover"
               />
             </div>
@@ -1732,7 +1732,9 @@
               >
               <input
                 type="email"
+                name="email"
                 placeholder="EMAIL ADDRESS"
+                required
                 class="bg-white border-2 border-black p-3 font-bold focus:outline-none focus:bg-neo-yellow focus:shadow-hard-sm transition-all cursor-hover"
               />
             </div>
@@ -1741,8 +1743,10 @@
                 >Transmission</label
               >
               <textarea
+                name="message"
                 rows="4"
                 placeholder="PROJECT DETAILS..."
+                required
                 class="bg-white border-2 border-black p-3 font-bold focus:outline-none focus:bg-neo-yellow focus:shadow-hard-sm transition-all resize-none cursor-hover"
               ></textarea>
             </div>
@@ -1752,6 +1756,7 @@
             >
               TRANSMIT DATA
             </button>
+            <div id="contact-status" class="text-sm font-bold"></div>
           </form>
         </div>
       </div>
@@ -1848,6 +1853,7 @@
       </div>
     </footer>
 
+    <script src="https://cdn.emailjs.com/sdk/3.2.0/email.min.js"></script>
     <script>
       // Custom Cursor Logic
       const cursor = document.getElementById("cursor");
@@ -2179,6 +2185,101 @@
         let scrolled = (winScroll / height) * 100;
         document.getElementById("progressBar").style.width = scrolled + "%";
       };
+
+      const contactForm = document.getElementById("contact-form");
+      const contactStatus = document.getElementById("contact-status");
+      const FORM_ENDPOINT = ""; // Optional: replace with your Formspree endpoint, e.g. https://formspree.com/f/xyz
+      const EMAILJS_SERVICE_ID = ""; // Optional: replace with your EmailJS service ID
+      const EMAILJS_TEMPLATE_ID = ""; // Optional: replace with your EmailJS template ID
+      const EMAILJS_PUBLIC_KEY = ""; // Optional: replace with your EmailJS public key
+
+      const openMailClient = (mailtoLink) => {
+        if (contactStatus) {
+          contactStatus.innerHTML =
+            `<span class="text-neo-green">Opening your email client... If it does not open, <a class="underline" href="${mailtoLink}">click here</a>.</span>`;
+        }
+        window.open(mailtoLink, "_blank");
+      };
+
+      if (window.emailjs && EMAILJS_PUBLIC_KEY) {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+      }
+
+      if (contactForm) {
+        contactForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const formData = new FormData(contactForm);
+          const name = formData.get("name")?.toString().trim();
+          const email = formData.get("email")?.toString().trim();
+          const message = formData.get("message")?.toString().trim();
+
+          if (!name || !email || !message) {
+            if (contactStatus) {
+              contactStatus.innerHTML =
+                '<span class="text-neo-orange">Please fill all fields before submitting.</span>';
+            }
+            return;
+          }
+
+          if (contactStatus) {
+            contactStatus.innerHTML =
+              '<span class="text-neo-yellow">Preparing your message...</span>';
+          }
+
+          const subject = `Portfolio Contact from ${name}`;
+          const body = `Name: ${name}%0D%0AEmail: ${email}%0D%0A%0D%0A${encodeURIComponent(
+            message,
+          )}`;
+          const mailtoLink = `mailto:chouhanabhishek9630@gmail.com?subject=${encodeURIComponent(
+            subject,
+          )}&body=${body}`;
+
+          if (FORM_ENDPOINT) {
+            try {
+              const response = await fetch(FORM_ENDPOINT, {
+                method: "POST",
+                body: formData,
+                headers: {
+                  Accept: "application/json",
+                },
+              });
+
+              if (response.ok) {
+                contactForm.reset();
+                if (contactStatus) {
+                  contactStatus.innerHTML =
+                    '<span class="text-neo-green">Transmission received. I will reach out shortly.</span>';
+                }
+                return;
+              }
+            } catch (error) {
+              console.error("Contact form submission error:", error);
+            }
+          }
+
+          if (window.emailjs && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID) {
+            try {
+              await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                from_name: name,
+                from_email: email,
+                message: message,
+              });
+              contactForm.reset();
+              if (contactStatus) {
+                contactStatus.innerHTML =
+                  '<span class="text-neo-green">Message sent successfully by EmailJS. I will reply shortly.</span>';
+              }
+              return;
+            } catch (error) {
+              console.error("EmailJS submission error:", error);
+            }
+          }
+
+          // Fallback to email client if no Formspree/EmailJS endpoint is configured or submission fails
+          openMailClient(mailtoLink);
+        });
+      }
     </script>
   </body>
 </html>
